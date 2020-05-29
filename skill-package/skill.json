@@ -1,0 +1,50 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "en-GB": {
+          "summary": "Alexa MyTube Skill",
+          "examplePhrases": [
+            "Alexa open mytube",
+            "hello",
+            "help"
+          ],
+          "keywords": [
+            "audio",
+            "streaming",
+            "youtube"
+          ],
+          "name": "Mytube",
+          "description": "Sample Full Description",
+          "smallIconUri": "https://alexademo.ninja/skills/logo-108.png",
+          "largeIconUri": "https://alexademo.ninja/skills/logo-512.png"
+        }
+      },
+      "isAvailableWorldwide": true,
+      "testingInstructions": "Sample Testing Instructions.",
+      "category": "STREAMING_SERVICE",
+      "distributionCountries": []
+    },
+    "apis": {
+      "custom": {
+        "interfaces": [
+          {
+            "type": "AUDIO_PLAYER"
+          }
+        ],
+        "endpoint": {
+          "uri": "arn:aws:lambda:eu-west-1:924338216746:function:ask-mytube-default-default-1589635715195"
+        }
+      }
+    },
+    "manifestVersion": "1.0",
+    "permissions": [],
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "isExportCompliant": true,
+      "containsAds": false,
+      "isChildDirected": false,
+      "usesPersonalInfo": false
+    }
+  }
+}
