@@ -9,8 +9,8 @@
               "iamRole": "arn:aws:iam::924338216746:role/ask-lambda-Mytube-1589635705685",
               "lambda": {
                 "arn": "arn:aws:lambda:eu-west-1:924338216746:function:ask-mytube-default-default-1589635715195",
-                "lastModified": "2020-05-30T14:35:22.124+0000",
-                "revisionId": "2b7fe962-daa5-4105-b335-6daf727dc20d"
+                "lastModified": "2020-05-30T14:39:49.801+0000",
+                "revisionId": "941f6c80-bd26-4cb9-8647-23826d3e3bbd"
               }
             }
           }

@@ -248,7 +248,7 @@ const ResumePlaybackHandler = {
   },
   handle(handlerInput) {
     console.log("ResumePlaybackHandler");
-    return controller.play(handlerInput, "Resuming ");
+    return controller.play(handlerInput, "Resuming: ");
   },
 };
 
@@ -269,7 +269,7 @@ const StartOverHandler = {
 
     playbackInfo.offsetInMilliseconds = 0;
 
-    return controller.play(handlerInput, "Starting Over ");
+    return controller.play(handlerInput, "Starting Over: ");
   },
 };
 
@@ -286,7 +286,7 @@ const YesHandler = {
   },
   handle(handlerInput) {
     console.log("YesHandler");
-    return controller.play(handlerInput, "Resuming ");
+    return controller.play(handlerInput, "Resuming: ");
   },
 };
 
@@ -310,7 +310,7 @@ const NoHandler = {
     playbackInfo.playbackIndexChanged = true;
     playbackInfo.hasPreviousPlaybackSession = false;
 
-    return controller.play(handlerInput, "Playing ");
+    return controller.play(handlerInput, "Playing: ");
   },
 };
 
@@ -490,7 +490,7 @@ const controller = {
     playbackInfo.playbackIndexChanged = true;
     playbackInfo.query = query;
     playbackInfo.nextPageToken = data.nextPageToken;
-    return this.play(handlerInput, "Playing ");
+    return this.play(handlerInput, "Playing: ");
   },
   async play(handlerInput, message) {
     const { attributesManager, responseBuilder } = handlerInput;
@@ -566,7 +566,7 @@ const controller = {
     playbackInfo.offsetInMilliseconds = 0;
     playbackInfo.playbackIndexChanged = true;
 
-    return this.play(handlerInput, "Playing Next ");
+    return this.play(handlerInput, "Playing Next: ");
   },
   async playPrevious(handlerInput) {
     const {
@@ -586,7 +586,7 @@ const controller = {
     playbackInfo.offsetInMilliseconds = 0;
     playbackInfo.playbackIndexChanged = true;
 
-    return this.play(handlerInput, "Playing Previous ");
+    return this.play(handlerInput, "Playing Previous: ");
   },
 };
 
