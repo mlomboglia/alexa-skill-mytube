@@ -51,10 +51,7 @@ const AudioPlayerEventHandler = {
       responseBuilder,
     } = handlerInput;
     const audioPlayerEventName = requestEnvelope.request.type.split(".")[1];
-    const {
-      playbackSetting,
-      playbackInfo,
-    } = await attributesManager.getPersistentAttributes();
+    const { playbackInfo } = await attributesManager.getPersistentAttributes();
     console.log("AudioPlayerEventHandler");
     console.log(audioPlayerEventName);
     switch (audioPlayerEventName) {
@@ -84,7 +81,7 @@ const AudioPlayerEventHandler = {
 
         const enqueueIndex = playbackInfo.index + 1;
 
-        if (enqueueIndex === 0 && !playbackSetting.loop) {
+        if (enqueueIndex === 0) {
           break;
         }
 
@@ -255,105 +252,6 @@ const ResumePlaybackHandler = {
   },
 };
 
-const LoopOnHandler = {
-  async canHandle(handlerInput) {
-    const playbackInfo = await getPlaybackInfo(handlerInput);
-    const request = handlerInput.requestEnvelope.request;
-
-    return (
-      playbackInfo.inPlaybackSession &&
-      request.type === "IntentRequest" &&
-      request.intent.name === "AMAZON.LoopOnIntent"
-    );
-  },
-  async handle(handlerInput) {
-    console.log("LoopOnHandler");
-    const playbackSetting = await handlerInput.attributesManager.getPersistentAttributes()
-      .playbackSetting;
-
-    playbackSetting.loop = true;
-
-    return handlerInput.responseBuilder.speak("Loop turned on.").getResponse();
-  },
-};
-
-const LoopOffHandler = {
-  async canHandle(handlerInput) {
-    const playbackInfo = await getPlaybackInfo(handlerInput);
-    const request = handlerInput.requestEnvelope.request;
-
-    return (
-      playbackInfo.inPlaybackSession &&
-      request.type === "IntentRequest" &&
-      request.intent.name === "AMAZON.LoopOffIntent"
-    );
-  },
-  async handle(handlerInput) {
-    console.log("LoopOffHandler");
-    const playbackSetting = await handlerInput.attributesManager.getPersistentAttributes()
-      .playbackSetting;
-
-    playbackSetting.loop = false;
-
-    return handlerInput.responseBuilder.speak("Loop turned off.").getResponse();
-  },
-};
-
-const ShuffleOnHandler = {
-  async canHandle(handlerInput) {
-    const playbackInfo = await getPlaybackInfo(handlerInput);
-    const request = handlerInput.requestEnvelope.request;
-
-    return (
-      playbackInfo.inPlaybackSession &&
-      request.type === "IntentRequest" &&
-      request.intent.name === "AMAZON.ShuffleOnIntent"
-    );
-  },
-  async handle(handlerInput) {
-    console.log("ShuffleOnHandler");
-    const {
-      playbackInfo,
-      playbackSetting,
-    } = await handlerInput.attributesManager.getPersistentAttributes();
-
-    playbackSetting.shuffle = true;
-    playbackInfo.playOrder = await shuffleOrder();
-    playbackInfo.index = 0;
-    playbackInfo.offsetInMilliseconds = 0;
-    playbackInfo.playbackIndexChanged = true;
-    return controller.play(handlerInput, "Shuffle on, Playing ");
-  },
-};
-
-const ShuffleOffHandler = {
-  async canHandle(handlerInput) {
-    const playbackInfo = await getPlaybackInfo(handlerInput);
-    const request = handlerInput.requestEnvelope.request;
-
-    return (
-      playbackInfo.inPlaybackSession &&
-      request.type === "IntentRequest" &&
-      request.intent.name === "AMAZON.ShuffleOffIntent"
-    );
-  },
-  async handle(handlerInput) {
-    console.log("ShuffleOffHandler");
-    const {
-      playbackInfo,
-      playbackSetting,
-    } = await handlerInput.attributesManager.getPersistentAttributes();
-
-    //if (playbackSetting.shuffle) {
-    //  playbackSetting.shuffle = false;
-    //  playbackInfo.index = playbackInfo.playOrder[playbackInfo.index];
-    //  playbackInfo.playOrder = [...Array(playbackInfo.playOrder).keys()];
-    //}
-
-    return controller.play(handlerInput, "Shuffle off, Playing ");
-  },
-};
-
 const StartOverHandler = {
   async canHandle(handlerInput) {
     const playbackInfo = await getPlaybackInfo(handlerInput);
@@ -520,10 +418,6 @@ const LoadPersistentAttributesRequestInterceptor = {
     // Check if user is invoking the skill the first time and initialize preset values
     if (Object.keys(persistentAttributes).length === 0) {
       handlerInput.attributesManager.setPersistentAttributes({
-        playbackSetting: {
-          loop: false,
-          shuffle: false,
-        },
         playbackInfo: {
           playOrder: [],
           index: 0,
@@ -656,13 +550,16 @@ const controller = {
   async playNext(handlerInput) {
     const {
       playbackInfo,
-      playbackSetting,
     } = await handlerInput.attributesManager.getPersistentAttributes();
     console.log("PlayNext");
     const nextIndex = playbackInfo.index + 1;
 
-    if (nextIndex === 0 && !playbackSetting.loop) {
-      return this.search(handlerInput, playbackInfo.query, playbackInfo.nextPageToken);
+    if (nextIndex === 0) {
+      return this.search(
+        handlerInput,
+        playbackInfo.query,
+        playbackInfo.nextPageToken
+      );
     }
 
     playbackInfo.index = nextIndex;
@@ -674,20 +571,15 @@ const controller = {
   async playPrevious(handlerInput) {
     const {
       playbackInfo,
-      playbackSetting,
     } = await handlerInput.attributesManager.getPersistentAttributes();
 
     let previousIndex = playbackInfo.index - 1;
 
     if (previousIndex === -1) {
-      if (playbackSetting.loop) {
-        previousIndex += playbackInfo.playOrder.length;
-      } else {
-        return handlerInput.responseBuilder
-          .speak("You have reached the start of the playlist")
-          .addAudioPlayerStopDirective()
-          .getResponse();
-      }
+      return handlerInput.responseBuilder
+        .speak("You have reached the start of the playlist")
+        .addAudioPlayerStopDirective()
+        .getResponse();
     }
 
     playbackInfo.index = previousIndex;
@@ -717,24 +609,6 @@ async function getIndex(handlerInput) {
 function getOffsetInMilliseconds(handlerInput) {
   // Extracting offsetInMilliseconds received in the request.
   return handlerInput.requestEnvelope.request.offsetInMilliseconds;
-}
-
-function shuffleOrder() {
-  const array = [...Array(playbackInfo.playOrder.length).keys()];
-  let currentIndex = array.length;
-  let temp;
-  let randomIndex;
-  // Algorithm : Fisher-Yates shuffle
-  return new Promise((resolve) => {
-    while (currentIndex >= 1) {
-      randomIndex = Math.floor(Math.random() * currentIndex);
-      currentIndex -= 1;
-      temp = array[currentIndex];
-      array[currentIndex] = array[randomIndex];
-      array[randomIndex] = temp;
-    }
-    resolve(array);
-  });
 }
 
 const getRemoteData = function (url) {
@@ -767,10 +641,6 @@ exports.handler = skillBuilder
     PreviousPlaybackHandler,
     PausePlaybackHandler,
     ResumePlaybackHandler,
-    LoopOnHandler,
-    LoopOffHandler,
-    ShuffleOnHandler,
-    ShuffleOffHandler,
     StartOverHandler,
     ExitHandler,
     AudioPlayerEventHandler
