@@ -34,7 +34,7 @@ const LaunchRequestHandler = {
     }
 
     return handlerInput.responseBuilder
-      .speak(message)
+      .speak(alexa.escapeXmlCharacters(message))
       .reprompt(reprompt)
       .getResponse();
   },
@@ -78,42 +78,26 @@ const AudioPlayerEventHandler = {
         if (playbackInfo.nextStreamEnqueued) {
           break;
         }
-
-        const enqueueIndex = playbackInfo.index + 1;
-
-        if (enqueueIndex === 0) {
-          break;
-        }
-
-        playbackInfo.nextStreamEnqueued = true;
-        const playBehavior = "ENQUEUE";
-
-        const audio = playbackInfo.playOrder[enqueueIndex];
+        const audio = playbackInfo.playOrder[playbackInfo.index];
         if (audio === undefined) {
           playbackInfo.nextStreamEnqueued = false;
           console.log("End of Playlist");
-          return;
+          return controller.search(
+            handlerInput,
+            playbackInfo.query,
+            playbackInfo.nextPageToken
+          );
         } else {
-          const enqueueToken = audio.videoId;
-          const url = await getRemoteData(
-            `${constants.skill.audioServer}/play/${audio.videoId}`
-          )
-            .then((response) => {
-              const data = JSON.parse(response);
-              console.log(data);
-              return data.url;
-            })
-            .catch((err) => {
-              console.log(err);
-              return err;
-            });
+          const { url, token } = await getNextAudioUrl(playbackInfo);
           const expectedPreviousToken = playbackInfo.token;
           const offsetInMilliseconds = 0;
+          const playBehavior = "ENQUEUE";
+          playbackInfo.nextStreamEnqueued = true;
 
           responseBuilder.addAudioPlayerPlayDirective(
             playBehavior,
             url,
-            enqueueToken,
+            token,
             offsetInMilliseconds,
             expectedPreviousToken
           );
@@ -338,7 +322,7 @@ const HelpHandler = {
     }
 
     return handlerInput.responseBuilder
-      .speak(message)
+      .speak(alexa.escapeXmlCharacters(message))
       .reprompt(message)
       .getResponse();
   },
@@ -384,6 +368,7 @@ const SessionEndedRequestHandler = {
   },
   handle(handlerInput) {
     console.log("SessionEndedRequestHandler");
+    console.log(JSON.stringify(handlerInput.requestEnvelope, null, 2));
     console.log(
       `Session ended with reason: ${handlerInput.requestEnvelope.request.reason}`
     );
@@ -403,7 +388,7 @@ const ErrorHandler = {
       "Sorry, this is not a valid command. Please say help to hear what you can say.";
 
     return handlerInput.responseBuilder
-      .speak(message)
+      .speak(alexa.escapeXmlCharacters(message))
       .reprompt(message)
       .getResponse();
   },
@@ -469,15 +454,14 @@ const controller = {
     } = await handlerInput.attributesManager.getPersistentAttributes();
     let searchUrl = "";
     if (nextPageToken != null) {
-      searchUrl = `${constants.skill.audioServer}/search/${query}/${nextPageToken}`;
+      searchUrl = `${constants.config.audioServer}/search/${query}/${nextPageToken}`;
     } else {
-      searchUrl = `${constants.skill.audioServer}/search/${query}`;
+      searchUrl = `${constants.config.audioServer}/search/${query}`;
     }
     console.log(searchUrl);
     const data = await getRemoteData(searchUrl)
       .then((response) => {
         return JSON.parse(response);
-        //return data.results;
       })
       .catch((err) => {
         console.log(err);
@@ -494,11 +478,9 @@ const controller = {
   },
   async play(handlerInput, message) {
     const { attributesManager, responseBuilder } = handlerInput;
-
     const playbackInfo = await getPlaybackInfo(handlerInput);
     const { playOrder, offsetInMilliseconds, index } = playbackInfo;
-    const playBehavior = "REPLACE_ALL";
-    const audio = playOrder[index];
+    let audio = playOrder[index];
     if (audio === undefined) {
       return controller.search(
         handlerInput,
@@ -506,24 +488,11 @@ const controller = {
         playbackInfo.nextPageToken
       );
     }
-    const url = await getRemoteData(
-      `${constants.skill.audioServer}/play/${audio.videoId}`
-    )
-      .then((response) => {
-        const data = JSON.parse(response);
-        console.log(data);
-        return data.url;
-      })
-      .catch((err) => {
-        console.log(err);
-        return err;
-      });
-    console.log(url);
-    const token = audio.videoId;
+    const playBehavior = "REPLACE_ALL";
+    const { url, title, token } = await getAudioUrl(audio);
     playbackInfo.nextStreamEnqueued = false;
-
     responseBuilder
-      .speak(`${message} ${audio.snippet.title}`)
+      .speak(alexa.escapeXmlCharacters(`${message} ${title}`))
       .withShouldEndSession(true)
       .addAudioPlayerPlayDirective(
         playBehavior,
@@ -534,8 +503,8 @@ const controller = {
       );
 
     if (await canThrowCard(handlerInput)) {
-      const cardTitle = `Playing ${audio.snippet.title}`;
-      const cardContent = `Playing ${audio.snippet.title}`;
+      const cardTitle = `Playing ${title}`;
+      const cardContent = `Playing ${title}`;
       responseBuilder.withSimpleCard(cardTitle, cardContent);
     }
 
@@ -543,7 +512,7 @@ const controller = {
   },
   stop(handlerInput, message) {
     return handlerInput.responseBuilder
-      .speak(message)
+      .speak(alexa.escapeXmlCharacters(message))
       .addAudioPlayerStopDirective()
       .getResponse();
   },
@@ -552,17 +521,26 @@ const controller = {
       playbackInfo,
     } = await handlerInput.attributesManager.getPersistentAttributes();
     console.log("PlayNext");
-    const nextIndex = playbackInfo.index + 1;
-
-    if (nextIndex === 0) {
-      return this.search(
-        handlerInput,
-        playbackInfo.query,
-        playbackInfo.nextPageToken
-      );
+    let audio = playbackInfo.playOrder[playbackInfo.index];
+    if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
+      const nextPlayListIndex = audio.playListIndex + 1;
+      audio.playListIndex = nextPlayListIndex;
+      if (audio.playlistItems[nextPlayListIndex].videoId == undefined) {
+        playbackInfo.index = playbackInfo.index + 1;
+      } else {
+        audio.videoId = audio.playlistItems[nextPlayListIndex].videoId;
+      }
+    } else {
+      const nextIndex = playbackInfo.index + 1;
+      if (nextIndex === 0) {
+        return this.search(
+          handlerInput,
+          playbackInfo.query,
+          playbackInfo.nextPageToken
+        );
+      }
+      playbackInfo.index = nextIndex;
     }
-
-    playbackInfo.index = nextIndex;
     playbackInfo.offsetInMilliseconds = 0;
     playbackInfo.playbackIndexChanged = true;
 
@@ -590,20 +568,81 @@ const controller = {
   },
 };
 
+
+
+const getAudioUrl = async (audio) => {
+  let title = "";
+  if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
+    //Playlist
+    //Check for list of audio files
+    if (audio.videoId === undefined) {
+      const playlistItems = await getRemoteData(
+        `${constants.config.audioServer}/playlist/${audio.playlistId}`
+      )
+        .then((response) => {
+          const data = JSON.parse(response);
+          return data.results;
+        })
+        .catch((err) => {
+          console.log(err);
+          return err;
+        });
+      audio.playlistItems = playlistItems;
+      audio.playListIndex = 0;
+      audio.videoId = playlistItems[0].videoId;
+    }
+    title = audio.playlistItems[audio.playListIndex].snippet.title;
+  } else {
+    title = audio.snippet.title;
+  }
+  const token = audio.videoId;
+  const url = await getRemoteData(
+    `${constants.config.audioServer}/play/${audio.videoId}`
+  )
+    .then((response) => {
+      const data = JSON.parse(response);
+      console.log(data);
+      return data.url;
+    })
+    .catch((err) => {
+      console.log(err);
+      return err;
+    });
+  return { url, title, token };
+};
+
+const getNextAudioUrl = async (playbackInfo) => {
+  let audio = playbackInfo.playOrder[playbackInfo.index];
+  let index = 0;
+  //Check if playlist
+  if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
+    const nextPlayListIndex = audio.playListIndex + 1;
+    //audio.playListIndex = nextPlayListIndex;
+    if (audio.playlistItems[nextPlayListIndex].videoId == undefined) {
+      //Playlist finished, go to next audio in the list
+      index = playbackInfo.index + 1
+      //playbackInfo.index = playbackInfo.index + 1;
+      audio = audio.playOrder[index];
+    } else {
+      //Next audio in the playlist
+      audio = audio.playlistItems[nextPlayListIndex];
+    }
+  } else {
+    //Not playlist, go to next audio in the list
+    index = playbackInfo.index + 1
+    audio = audio.playOrder[index];
+  } 
+  return getAudioUrl(audio);
+};
+
 function getToken(handlerInput) {
   // Extracting token received in the request.
   return handlerInput.requestEnvelope.request.token;
 }
 
 async function getIndex(handlerInput) {
-  // Extracting index from the token received in the request.
-  const tokenValue = handlerInput.requestEnvelope.request.token;
   const attributes = await handlerInput.attributesManager.getPersistentAttributes();
-  const index = attributes.playbackInfo.playOrder
-    .map((e) => e.videoId)
-    .indexOf(tokenValue);
-  console.log(index);
-  return index;
+  return attributes.playbackInfo.index;
 }
 
 function getOffsetInMilliseconds(handlerInput) {
@@ -649,5 +688,5 @@ exports.handler = skillBuilder
   .addResponseInterceptors(SavePersistentAttributesResponseInterceptor)
   .addErrorHandlers(ErrorHandler)
   .withAutoCreateTable(true)
-  .withTableName(constants.skill.dynamoDBTableName)
+  .withTableName(constants.config.dynamoDBTableName)
   .lambda();
