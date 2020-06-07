@@ -527,7 +527,7 @@ const controller = {
     if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
       const nextPlayListIndex = audio.playListIndex + 1;
       audio.playListIndex = nextPlayListIndex;
-      if (audio.playlistItems[nextPlayListIndex].videoId == undefined) {
+      if (audio.playlistItems[nextPlayListIndex] == undefined) {
         playbackInfo.index = playbackInfo.index + 1;
       } else {
         audio.videoId = audio.playlistItems[nextPlayListIndex].videoId;
@@ -620,11 +620,11 @@ const getNextAudioUrl = async (playbackInfo) => {
   if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
     const nextPlayListIndex = audio.playListIndex + 1;
     //audio.playListIndex = nextPlayListIndex;
-    if (audio.playlistItems[nextPlayListIndex].videoId == undefined) {
+    if (audio.playlistItems[nextPlayListIndex] == undefined) {
       //Playlist finished, go to next audio in the list
       index = playbackInfo.index + 1
       //playbackInfo.index = playbackInfo.index + 1;
-      audio = audio.playOrder[index];
+      audio = playbackInfo.playOrder[index];
     } else {
       //Next audio in the playlist
       audio = audio.playlistItems[nextPlayListIndex];
@@ -652,7 +652,7 @@ async function setNextIndex(playbackInfo) {
   //Check if playlist
   if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
     audio.playListIndex = audio.playListIndex + 1;
-    if (audio.playlistItems[audio.playListIndex].videoId == undefined) {
+    if (audio.playlistItems[audio.playListIndex] == undefined) {
       //Playlist finished, go to next audio in the list
       playbackInfo.index = playbackInfo.index + 1
     }
