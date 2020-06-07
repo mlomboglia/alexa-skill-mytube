@@ -20,7 +20,7 @@ const LaunchRequestHandler = {
 
     if (!playbackInfo.hasPreviousPlaybackSession) {
       message =
-        "Welcome to the Mytube. ask to play a video to start listening.";
+        "Welcome to Mytube. ask to play a video to start listening.";
       reprompt = "You can say, play the Beatles, to begin.";
     } else {
       playbackInfo.inPlaybackSession = false;
@@ -65,6 +65,8 @@ const AudioPlayerEventHandler = {
         playbackInfo.inPlaybackSession = false;
         playbackInfo.hasPreviousPlaybackSession = false;
         playbackInfo.nextStreamEnqueued = false;
+        //increase audio index
+        await setNextIndex(playbackInfo);
         break;
       case "PlaybackStopped":
         playbackInfo.token = getToken(handlerInput);
@@ -635,7 +637,7 @@ const getNextAudioUrl = async (playbackInfo) => {
   return getAudioUrl(audio);
 };
 
-function getToken(handlerInput) {
+const getToken = (handlerInput) => {
   // Extracting token received in the request.
   return handlerInput.requestEnvelope.request.token;
 }
@@ -645,12 +647,26 @@ async function getIndex(handlerInput) {
   return attributes.playbackInfo.index;
 }
 
-function getOffsetInMilliseconds(handlerInput) {
+async function setNextIndex(playbackInfo) {
+  let audio = playbackInfo.playOrder[playbackInfo.index];
+  //Check if playlist
+  if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
+    audio.playListIndex = audio.playListIndex + 1;
+    if (audio.playlistItems[audio.playListIndex].videoId == undefined) {
+      //Playlist finished, go to next audio in the list
+      playbackInfo.index = playbackInfo.index + 1
+    }
+  } else {
+    playbackInfo.index = playbackInfo.index + 1
+  }  
+}
+
+const getOffsetInMilliseconds = (handlerInput) => {
   // Extracting offsetInMilliseconds received in the request.
   return handlerInput.requestEnvelope.request.offsetInMilliseconds;
 }
 
-const getRemoteData = function (url) {
+const getRemoteData = (url) => {
   return new Promise((resolve, reject) => {
     const client = url.startsWith("https") ? require("https") : require("http");
     const request = client.get(url, (response) => {
