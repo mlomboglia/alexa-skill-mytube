@@ -632,7 +632,7 @@ const getNextAudioUrl = async (playbackInfo) => {
   } else {
     //Not playlist, go to next audio in the list
     index = playbackInfo.index + 1
-    audio = audio.playOrder[index];
+    audio = playbackInfo.playOrder[index];
   } 
   return getAudioUrl(audio);
 };
