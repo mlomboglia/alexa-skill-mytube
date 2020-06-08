@@ -160,8 +160,11 @@ const StartPlaybackHandler = {
     console.log("StartPlaybackHandler");
     const speechText =
       handlerInput.requestEnvelope.request.intent.slots.videoQuery.value;
-
-    return controller.search(handlerInput, speechText, null);
+    console.log(speechText);
+    if (speechText)
+      return controller.search(handlerInput, speechText, null);
+    else 
+      return controller.playNext(handlerInput);
   },
 };
 
