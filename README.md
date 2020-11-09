@@ -37,7 +37,7 @@ $ (cd lambda && npm install)
 
 ASK will create the skill and the lambda function for you.
 
-Lambda function will be created in ```us-east-1``` (Northern Virginia) by default.
+Lambda function will be created in ```eu-west-1```.
 
 You deploy the skill and the lambda function in one step :
 
@@ -56,41 +56,12 @@ aws lambda update-function-configuration --function-name ask-custom-Multi_Stream
 
 After deploying, you will need to add DynamoDB permission to the IAM Role created to execute your function :
 
-- connect to AWS Console : https://console.aws.amazon.com/iam/home?region=us-east-1#/roles
-- select the role created to execute your lambda function (it is named "ask-lambda-Multi-Stream-Audio-Player" if you did not  change the default name)
+- connect to AWS Console : https://console.aws.amazon.com/iam/home?region=eu-west-1#/roles
+- select the role created to execute your lambda function (it is named "ask-mytube-default" if you did not  change the default name)
 - click "Attach Policy"
 - locate and select "AmazonDynamoDBFullAccessPolicy" role and click "Attach Policy"
 
-#### Change the skill id in lambda code. (Optional but recommended)
-
-Once the skill and lambda function is deployed, do not forget to add the skill id to ```lambda/src/constants.js``` to ensure your code is executed only for your skill.
-
-Uncomment the ```AppId``` line and change it with your new skill id.  You can find the skill id by typing :
-
-```bash
-$ ask api list-skills
-```
-```json
-{
-  "skills": [
-    {
-      "apis": [
-        "custom"
-      ],
-      "lastUpdated": "2017-10-08T08:06:34.835Z",
-      "nameByLocale": {
-        "en-GB": "Multi Stream Audio Player",
-        "en-US": "Multi Stream Audio Player"
-      },
-      "skillId": "amzn1.ask.skill.123",
-      "stage": "development",
-      "publicationStatus": "DEVELOPMENT"      
-    }
-  ]
-}
-```
-
-Then copy/paste the skill id to ```lambda/src/constants.js```    
+Copy/paste the skill id to ```lambda/src/constants.js```    
 
 ```javascript
 export const constants = {
