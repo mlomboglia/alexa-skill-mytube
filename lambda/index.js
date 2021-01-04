@@ -51,7 +51,7 @@ const AudioPlayerEventHandler = {
       responseBuilder,
     } = handlerInput;
     const audioPlayerEventName = requestEnvelope.request.type.split(".")[1];
-    const { playbackInfo } = await attributesManager.getPersistentAttributes();
+    const { playbackSetting, playbackInfo } = await attributesManager.getPersistentAttributes();
     console.log("AudioPlayerEventHandler");
     console.log(audioPlayerEventName);
     switch (audioPlayerEventName) {
@@ -90,7 +90,7 @@ const AudioPlayerEventHandler = {
             playbackInfo.nextPageToken
           );
         } else {
-          const { url, token } = await getNextAudioUrl(playbackInfo);
+          const { url, token } = await getNextAudioUrl(handlerInput);
           const expectedPreviousToken = playbackInfo.token;
           const offsetInMilliseconds = 0;
           const playBehavior = "ENQUEUE";
@@ -351,6 +351,44 @@ const ExitHandler = {
   },
 };
 
+const LoopOnHandler = {
+  async canHandle(handlerInput) {
+    const playbackInfo = await getPlaybackInfo(handlerInput);
+    const request = handlerInput.requestEnvelope.request;
+
+    return playbackInfo.inPlaybackSession &&
+      request.type === 'IntentRequest' &&
+      request.intent.name === 'AMAZON.LoopOnIntent';
+  },
+  async handle(handlerInput) {
+    const playbackSetting = await getPlaybackSetting(handlerInput);
+    playbackSetting.loop = true;
+
+    return handlerInput.responseBuilder
+      .speak('Loop turned on.')
+      .getResponse();
+  },
+};
+
+const LoopOffHandler = {
+  async canHandle(handlerInput) {
+    const playbackInfo = await getPlaybackInfo(handlerInput);
+    const request = handlerInput.requestEnvelope.request;
+
+    return playbackInfo.inPlaybackSession &&
+      request.type === 'IntentRequest' &&
+      request.intent.name === 'AMAZON.LoopOffIntent';
+  },
+  async handle(handlerInput) {
+    const playbackSetting = await getPlaybackSetting(handlerInput);
+    playbackSetting.loop = false;
+
+    return handlerInput.responseBuilder
+      .speak('Loop turned off.')
+      .getResponse();
+  },
+};
+
 const SystemExceptionHandler = {
   canHandle(handlerInput) {
     return (
@@ -408,6 +446,10 @@ const LoadPersistentAttributesRequestInterceptor = {
     // Check if user is invoking the skill the first time and initialize preset values
     if (Object.keys(persistentAttributes).length === 0) {
       handlerInput.attributesManager.setPersistentAttributes({
+        playbackSetting: {
+          loop: false,
+          shuffle: false,
+        },
         playbackInfo: {
           playOrder: [],
           index: 0,
@@ -436,6 +478,11 @@ const SavePersistentAttributesResponseInterceptor = {
 async function getPlaybackInfo(handlerInput) {
   const attributes = await handlerInput.attributesManager.getPersistentAttributes();
   return attributes.playbackInfo;
+}
+
+async function getPlaybackSetting(handlerInput) {
+  const attributes = await handlerInput.attributesManager.getPersistentAttributes();
+  return attributes.playbackSetting;
 }
 
 async function canThrowCard(handlerInput) {
@@ -497,7 +544,8 @@ const controller = {
     const { url, title, token } = await getAudioUrl(audio);
     playbackInfo.nextStreamEnqueued = false;
     responseBuilder
-      .speak(alexa.escapeXmlCharacters(`${message} ${title}`))
+      //.speak(alexa.escapeXmlCharacters(`${message} ${title}`))
+      .speak(`${message} ${title}`)
       .withShouldEndSession(true)
       .addAudioPlayerPlayDirective(
         playBehavior,
@@ -573,8 +621,6 @@ const controller = {
   },
 };
 
-
-
 const getAudioUrl = async (audio) => {
   let title = "";
   if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
@@ -616,27 +662,46 @@ const getAudioUrl = async (audio) => {
   return { url, title, token };
 };
 
-const getNextAudioUrl = async (playbackInfo) => {
+const getNextAudioUrl = async (handlerInput) => {
+  const { playbackSetting, playbackInfo } = await handlerInput.attributesManager.getPersistentAttributes();
   let audio = playbackInfo.playOrder[playbackInfo.index];
   let index = 0;
-  //Check if playlist
-  if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
-    const nextPlayListIndex = audio.playListIndex + 1;
-    //audio.playListIndex = nextPlayListIndex;
-    if (audio.playlistItems[nextPlayListIndex] == undefined) {
-      //Playlist finished, go to next audio in the list
-      index = playbackInfo.index + 1
-      //playbackInfo.index = playbackInfo.index + 1;
-      audio = playbackInfo.playOrder[index];
+  //Check if finished playorder, get Next Page
+  if (audio === undefined) {
+    return controller.search(
+      handlerInput,
+      playbackInfo.query,
+      playbackInfo.nextPageToken
+    );
+  }
+  console.log(playbackSetting);
+  if (!playbackSetting.loop) {
+    if (audio.id.kind === constants.kind.KIND_PLAYLIST) {
+      const nextPlayListIndex = audio.playListIndex + 1;
+      //audio.playListIndex = nextPlayListIndex;
+      if (audio.playlistItems[nextPlayListIndex] == undefined) {
+        //Playlist finished, go to next audio in the list
+        index = playbackInfo.index + 1
+        //playbackInfo.index = playbackInfo.index + 1;
+        audio = playbackInfo.playOrder[index];
+      } else {
+        //Next audio in the playlist
+        audio = audio.playlistItems[nextPlayListIndex];
+      }
     } else {
-      //Next audio in the playlist
-      audio = audio.playlistItems[nextPlayListIndex];
+      //Not playlist, go to next audio in the list
+      index = playbackInfo.index + 1
+      audio = playbackInfo.playOrder[index];
     }
-  } else {
-    //Not playlist, go to next audio in the list
-    index = playbackInfo.index + 1
-    audio = playbackInfo.playOrder[index];
-  } 
+    //Check if finished playorder, get Next Page
+    if (audio === undefined) {
+      return controller.search(
+        handlerInput,
+        playbackInfo.query,
+        playbackInfo.nextPageToken
+      );
+    } 
+  }
   return getAudioUrl(audio);
 };
 
@@ -699,6 +764,8 @@ exports.handler = skillBuilder
     PreviousPlaybackHandler,
     PausePlaybackHandler,
     ResumePlaybackHandler,
+    LoopOnHandler,
+    LoopOffHandler,
     StartOverHandler,
     ExitHandler,
     AudioPlayerEventHandler

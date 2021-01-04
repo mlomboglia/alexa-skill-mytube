@@ -19,6 +19,16 @@
           "samples": []
         },
         {
+          "name": "AMAZON.LoopOnIntent",
+          "slots": [],
+          "samples": []
+        },
+        {
+          "name": "AMAZON.LoopOffIntent",
+          "slots": [],
+          "samples": []
+        },
+        {
           "name": "GetVideoIntent",
           "slots": [
             {

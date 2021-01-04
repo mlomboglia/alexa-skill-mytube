@@ -9,8 +9,8 @@
               "iamRole": "arn:aws:iam::924338216746:role/ask-lambda-Mytube-1589635705685",
               "lambda": {
                 "arn": "arn:aws:lambda:eu-west-1:924338216746:function:ask-mytube-default-default-1589635715195",
-                "lastModified": "2020-06-08T11:21:09.397+0000",
-                "revisionId": "8e67b76e-bda7-4d4a-8948-ca113700748d"
+                "lastModified": "2021-01-04T16:13:34.371+0000",
+                "revisionId": "c6c642f8-e363-45a1-a444-dbe86ed5f924"
               }
             }
           }
@@ -18,10 +18,12 @@
       },
       "skillId": "amzn1.ask.skill.53f7627e-811e-410e-a528-ab889ddb65fa",
       "skillMetadata": {
-        "lastDeployHash": "LZvf/JVcg7RmPH8flH6carJyLqI="
+        "lastDeployHash": "j6hawXP/S2QiQVfechMchTLXM6M="
       },
       "code": {
-        "default": {}
+        "default": {
+          "lastDeployHash": "aJQatntTuZ3z/JNkKhkMt/pg5d0="
+        }
       }
     }
   }
